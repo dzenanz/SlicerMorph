@@ -2770,6 +2770,38 @@ class ALPACALogic(ScriptedLoadableModuleLogic):
         box_filter.GetLengths(fixedLengths)
         return fixedLengths, diagonalLength
 
+    def write_vtk_mesh(self, mesh, filename, binary):
+        writer = vtk.vtkPolyDataWriter()
+        writer.SetFileName(filename)
+        writer.SetInputData(mesh)
+        writer.SetFileVersion(42)  # old version has better support by other tools
+        if binary:
+            writer.SetFileTypeToBinary()  # faster writing and reading
+        else:
+            writer.SetFileTypeToASCII()  # friendlier for debugging
+        writer.Write()
+
+    def write_fcsv(self, points: np.ndarray, filename):
+        """
+        Write fiducials to a file in Slicer .fcsv format.
+
+        :param fiducials: A numpy array with 3D point coordinates
+        :param filename: A path to the output file
+        """
+        with open(filename, 'w') as file:
+            file.write("# Markups fiducial file version = 5.6\n")
+            file.write("# CoordinateSystem = LPS\n")
+            file.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
+            for index in range(len(points)):
+                row = points[index]
+                name = f"p{index}"
+                if len(row) > 3:
+                    name = row[3]
+                file.write(f"{name},")
+                file.write(f"{row[0]:.4f},{row[1]:.4f},{row[2]:.4f},")
+                file.write("0,0,0,1,1,1,0,")
+                file.write(f"{name},{name} (particle {index}),,2,0\n")
+
     def runSubsample(
         self,
         sourceModel,
@@ -2823,12 +2855,20 @@ class ALPACALogic(ScriptedLoadableModuleLogic):
                 targetFullMesh_vtk, radius=voxel_size
             )
 
+        # self.write_vtk_mesh(sourceMesh_vtk, "sourceMesh.vtk", binary=False)
+        # self.write_vtk_mesh(targetMesh_vtk, "targetMesh.vtk", binary=False)
+
         movingMeshPoints, movingMeshPointNormals = self.extract_pca_normal(
             sourceMesh_vtk, 30
         )
         fixedMeshPoints, fixedMeshPointNormals = self.extract_pca_normal(
             targetMesh_vtk, 30
         )
+
+        # self.write_fcsv(movingMeshPoints, "movingMeshPoints.fcsv")
+        # self.write_fcsv(fixedMeshPoints, "fixedMeshPoints.fcsv")
+        # self.write_fcsv(movingMeshPointNormals, "movingMeshPointNormals.fcsv")
+        # self.write_fcsv(fixedMeshPointNormals, "fixedMeshPointNormals.fcsv")
 
         print("------------------------------------------------------------")
         print("movingMeshPoints.shape ", movingMeshPoints.shape)
