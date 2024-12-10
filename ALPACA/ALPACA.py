@@ -2787,25 +2787,35 @@ class ALPACALogic(ScriptedLoadableModuleLogic):
         # Scale the mesh and the landmark points
         fixedBoxLengths, fixedlength = self.getBoxLengths(targetModelMesh)
         movingBoxLengths, movinglength = self.getBoxLengths(sourceModelMesh)
+        if fixedlength > movinglength:
+            largerBox = fixedBoxLengths
+        else:
+            largerBox = movingBoxLengths
 
         # Sub-Sample the points for rigid refinement and deformable registration
         point_density = parameters["pointDensity"]
 
         # Voxel size is the diagonal length of cuboid in the voxelGrid
-        voxel_size = np.sqrt(np.sum(np.square(np.array(fixedBoxLengths)))) / (
+        voxel_size = np.sqrt(np.sum(np.square(np.array(largerBox)))) / (
             55 * point_density
         )
 
         print("Scale length are  ", fixedlength, movinglength)
         print("Voxel Size is ", voxel_size)
 
+        sourceFullMesh_vtk = sourceModelMesh
+        targetFullMesh_vtk = targetModelMesh
+
         scalingFactor = fixedlength / movinglength
         if scalingOption is False:
             scalingFactor = 1
-        print("Scaling factor is ", scalingFactor)
+        else:
+            if scalingFactor > 1:
+                sourceFullMesh_vtk = self.scale_vtk_point_coordinates(sourceModelMesh, scalingFactor)
+            else:  # scalingFactor <= 1
+                targetFullMesh_vtk = self.scale_vtk_point_coordinates(targetModelMesh, 1 / scalingFactor)
 
-        sourceFullMesh_vtk = self.scale_vtk_point_coordinates(sourceModelMesh, scalingFactor)
-        targetFullMesh_vtk = targetModelMesh
+        print("Scaling factor is ", scalingFactor)
 
         if usePoissonSubsample:
             print("Using Poisson Point Subsampling Method")
